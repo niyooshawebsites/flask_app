@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Flask Login App - Dashboard</title>
+    <title>Flask App - Dashboard</title>
   </head>
   <body>
     <header>
       <nav class="navbar navbar-expand-lg bg-body-tertiary">
         <div class="container-fluid">
-          <a class="navbar-brand" href="#">Flask App</a>
+          <a class="navbar-brand" href="/dashboard">Flask App</a>
           <button
             class="navbar-toggler"
             type="button"
@@ -24,7 +24,9 @@
           <div class="collapse navbar-collapse" id="navbarNavDropdown">
             <ul class="navbar-nav">
               <li class="nav-item">
-                <a class="nav-link active" aria-current="page" href="#">Home</a>
+                <a class="nav-link active" aria-current="page" href="/dashbaord"
+                  >Home</a
+                >
               </li>
               <li class="nav-item dropdown">
                 <a
@@ -37,10 +39,18 @@
                   Account
                 </a>
                 <ul class="dropdown-menu">
+                  {% if username: %}
+                  <li>
+                    <a class="dropdown-item" href="{{url_for('logout')}}"
+                      >logout</a
+                    >
+                  </li>
+                  {%else:%}
                   <li>
                     <a class="dropdown-item" href="/register">Register</a>
                   </li>
                   <li><a class="dropdown-item" href="/login">Login</a></li>
+                  {% endif %}
                 </ul>
               </li>
             </ul>
@@ -48,6 +58,11 @@
         </div>
       </nav>
     </header>
+
+    <div>
+      <h1>Welcome {{username}}</h1>
+      <h2>You are successfully logged in</h2>
+    </div>
 
     <footer>
       <p class="text-muted text-sm text-center">

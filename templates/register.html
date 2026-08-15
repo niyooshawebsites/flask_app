@@ -24,7 +24,7 @@
     <header>
       <nav class="navbar navbar-expand-lg px-5">
         <div class="container-fluid px-5">
-          <a class="navbar-brand" href="#">Flask App</a>
+          <a class="navbar-brand" href="/">Flask App</a>
           <button
             class="navbar-toggler"
             type="button"
@@ -68,7 +68,11 @@
     <div
       class="container d-flex flex-column justify-content-between align-items-center"
     >
-      <form class="card w-25 p-4 bg-light rounded-lg">
+      <form
+        class="card w-50 p-4 bg-light rounded-lg"
+        action="/register"
+        method="POST"
+      >
         <h2 class="text-primary text-center mb-4">Register</h2>
         <div class="form-group mb-3">
           <label for="email" class="text-sm text-muted mb-1">Email</label>
@@ -106,7 +110,19 @@
           />
         </div>
 
-        <input type="submit" value="Register" class="btn btn-dark" />
+        <input type="submit" value="Register" class="btn btn-dark mb-3" />
+
+        <!-- alert message -->
+        {% if msg: %}
+        <div class="alert alert-info alert-dismissible fade show mb-3">
+          {{msg}}
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="alert"
+          ></button>
+        </div>
+        {% endif %}
 
         <hr />
         <p class="text-center">
