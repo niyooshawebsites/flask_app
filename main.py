@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, session, redirect, url_for
-import mysql.connector
+import pymysql
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from dotenv import load_dotenv
@@ -8,15 +8,37 @@ load_dotenv()
 
 # initialize the flask app
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
-# helper function for DB connection
 def get_db_connection():
-    return mysql.connector.connect(
+    timeout = 10
+    connection = pymysql.connect(
+    charset="utf8mb4",
+    connect_timeout=timeout,
+    cursorclass=pymysql.cursors.DictCursor,
+    database=os.getenv("MYSQL_DATABASE"),
     host=os.getenv("MYSQL_HOST"),
-    user=os.getenv("MYSQL_USER"),
     password=os.getenv("MYSQL_PASSWORD"),
-    database=os.getenv("MYSQL_DATABASE")
+    read_timeout=timeout,
+    port=22390,
+    user=os.getenv("MYSQL_USER"),
+    write_timeout=timeout,
     )
+    cursor = connection.cursor()
+    return (connection, cursor)
+
+# create table
+def create_table():
+    connection, cursor = get_db_connection()
+    cursor.execute("""CREATE TABLE IF NOT EXISTS  login_details(
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(100) NOT NULL UNIQUE,
+                    email VARCHAR(255) NOT NULL UNIQUE,
+                    password VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    connection.commit()
+    cursor.close()
+    connection.close()
 
 # routes
 # home route
@@ -37,34 +59,35 @@ def register():
             msg = 'Please fill out all the details'
             return render_template('register.html', msg=msg)
         
-        myDB = get_db_connection()
-        mycursor = myDB.cursor()
+        connection = get_db_connection()
         
-        mycursor.execute("SELECT * FROM LoginDetails WHERE username=%s and email=%s", (username, email))
-        account = mycursor.fetchone()
-        
-        if account:
-            msg = 'Account already exists! Please login.'
-            mycursor.close()
-            myDB.close()
-            
-            return render_template("register.html", msg=msg)
-        else:
-            hashed_password = generate_password_hash(password)
-            mycursor.execute(
-                "INSERT INTO LoginDetails (username, email, password) VALUES (%s, %s, %s)",
-                (username, email, hashed_password)
-            )
-            myDB.commit()
-            mycursor.close()
-            myDB.close()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT * FROM login_details WHERE username=%s and email=%s", (username, email))
+                account = cursor.fetchone()
+                if account:
+                    msg = 'Account already exists! Please login.'
+                    cursor.close()
+                    connection.close()
+                    
+                    return render_template("register.html", msg=msg)
+                else:
+                    hashed_password = generate_password_hash(password)
+                    cursor.execute(
+                        "INSERT INTO login_details (username, email, password) VALUES (%s, %s, %s)",
+                        (username, email, hashed_password)
+                    )
+                    connection.commit()
+                    cursor.close()
+                    connection.close()
 
-            msg = "Registration successful!"
+                    msg = "Registration successful!"
 
-            # Store username in session
-            session["username"] = username
-            return render_template("dashboard.html", username=username, msg=msg)
-        
+                    # Store username in session
+                    session["username"] = username
+                    return render_template("dashboard.html", username=username, msg=msg)  
+        finally:
+            connection.close()  
     return render_template("register.html")
     
 # login route
@@ -75,17 +98,24 @@ def login():
         email = request.form['email']
         password = request.form['password']
         
-        myDB = get_db_connection()
-        mycursor = myDB.cursor()
-        mycursor.execute("SELECT * FROM LoginDetails WHERE email=%s", (email))
-        account = mycursor.fetchone()
+        if not email or not password:
+            msg = 'Please enter email and password'
+            return render_template('login.html', msg=msg)
         
-        mycursor.close()
-        myDB.close()
+        connection = get_db_connection()
         
-        if account and check_password_hash(account[3], password):
-            username = account[1]
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT * FROM login_details WHERE email=%s", (email,))
+                account = cursor.fetchone()
+                
+        finally:
+            connection.close()
+        
+        if account and check_password_hash(account["password"], password):
+            username = account["username"]
             msg = 'Logged in successfully'
+            session['username'] = username
             print('Logged in successfully')
             return redirect(url_for("dashboard"))
         else:
@@ -109,7 +139,8 @@ def logout():
 
     # Remove username from session
     session.pop("username", None)
-    return redirect(url_for('index'))
+    return redirect(url_for('home'))
 
 if __name__ == "__main__":
+    create_table()
     app.run(debug=True)
