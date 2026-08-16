@@ -12,7 +12,7 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
 def get_db_connection():
     timeout = 10
-    connection = pymysql.connect(
+    return pymysql.connect(
     charset="utf8mb4",
     connect_timeout=timeout,
     cursorclass=pymysql.cursors.DictCursor,
@@ -24,22 +24,22 @@ def get_db_connection():
     user=os.getenv("MYSQL_USER"),
     write_timeout=timeout,
     )
-    cursor = connection.cursor()
-    return (connection, cursor)
 
 # create table
 def create_table():
-    connection, cursor = get_db_connection()
-    cursor.execute("""CREATE TABLE IF NOT EXISTS  login_details(
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    username VARCHAR(100) NOT NULL UNIQUE,
-                    email VARCHAR(255) NOT NULL UNIQUE,
-                    password VARCHAR(255) NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-    connection.commit()
-    cursor.close()
-    connection.close()
-
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""CREATE TABLE IF NOT EXISTS  login_details(
+                                id INT AUTO_INCREMENT PRIMARY KEY,
+                                username VARCHAR(100) NOT NULL UNIQUE,
+                                email VARCHAR(255) NOT NULL UNIQUE,
+                                password VARCHAR(255) NOT NULL,
+                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+            connection.commit()
+    finally:
+        connection.close()
+    
 # routes
 # home route
 @app.route("/")
@@ -66,10 +66,7 @@ def register():
                 cursor.execute("SELECT * FROM login_details WHERE username=%s and email=%s", (username, email))
                 account = cursor.fetchone()
                 if account:
-                    msg = 'Account already exists! Please login.'
-                    cursor.close()
-                    connection.close()
-                    
+                    msg = 'Account already exists! Please login.'  
                     return render_template("register.html", msg=msg)
                 else:
                     hashed_password = generate_password_hash(password)
@@ -78,9 +75,6 @@ def register():
                         (username, email, hashed_password)
                     )
                     connection.commit()
-                    cursor.close()
-                    connection.close()
-
                     msg = "Registration successful!"
 
                     # Store username in session
